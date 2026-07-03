@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/crgimenes/filo v0.0.10
-	github.com/hajimehoshi/ebiten/v2 v2.10.0-alpha.11
+	github.com/hajimehoshi/ebiten/v2 v2.10.0-alpha.11.0.20260511153605-ac9d235653cc
 )
 
 require (

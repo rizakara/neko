@@ -35,7 +35,7 @@ func TestGenerateSpriteSheet(t *testing.T) {
 			t.Fatalf("open %s: %v", src, err)
 		}
 		img, err := png.Decode(f)
-		f.Close()
+		_ = f.Close() // read-only; a close error cannot corrupt anything
 		if err != nil {
 			t.Fatalf("decode %s: %v", src, err)
 		}
@@ -54,9 +54,13 @@ func TestGenerateSpriteSheet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create %s: %v", out, err)
 	}
-	defer f.Close()
 	if err := png.Encode(f, sheet); err != nil {
+		_ = f.Close()
 		t.Fatalf("encode %s: %v", out, err)
+	}
+	// The sheet was written: a failed close means a truncated file, so check it.
+	if err := f.Close(); err != nil {
+		t.Fatalf("close %s: %v", out, err)
 	}
 
 	t.Logf("wrote %s (%d sprites)", out, len(spriteSheetLayout))
