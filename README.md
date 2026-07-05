@@ -178,3 +178,14 @@ After that, you can simply run `neko` in your terminal. If you want it to start 
 ## How to Contribute
 
 Please follow our [contribution guide](CONTRIBUTING.md).
+
+---
+
+## More of my projects
+
+- [kutta](https://github.com/crgimenes/kutta): a 2D wind tunnel; watch air misbehave around an airfoil.
+- [NeoFrame](https://github.com/crgimenes/NeoFrame): draw over your screen; a transparent overlay for demos and classes.
+- [glaze](https://github.com/crgimenes/glaze): WebView desktop apps in Go, cgo-free.
+- [filo](https://github.com/crgimenes/filo): a small scripting language safe to embed in Go programs.
+
+More at [github.com/crgimenes](https://github.com/crgimenes) and [crg.eti.br](https://crg.eti.br).
