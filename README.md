@@ -112,7 +112,8 @@ starting point:
   (set Scale 2.0)             ;; on-screen scale of the cat
   (set Quiet #f)              ;; #t disables sound
   (set MousePassthrough #f)   ;; #t lets clicks pass through the window
-  (set SpriteSheet ""))       ;; path to a custom sprite sheet; empty uses the built-in cat
+  (set SpriteSheet "")        ;; path to a custom sprite sheet; empty uses the built-in cat
+  (set Color ""))             ;; built-in coat color as RRGGBB (e.g. "BC83DB"); empty is the original
 ```
 
 Settings:
@@ -122,6 +123,23 @@ Settings:
 - `Quiet` Disable sound (default `#f`).
 - `MousePassthrough` Enable mouse passthrough (default `#f`).
 - `SpriteSheet` Path to a custom sprite sheet (default empty; see [Sprite sheets and skins](#sprite-sheets-and-skins)).
+- `Color` Coat color as a 6-digit RRGGBB hex string (default empty = original). Presets: `BC83DB` Purple, `85B4DD` Blue, `EDAF71` Orange, `FFAAD4` Pink, `B1EA9D` Green, `7F7F7F` Gray — or any custom hex. Ignored when `SpriteSheet` is set.
+
+Right-click the cat to open a **context menu** (fixed UI size; only the cat scales):
+
+- **Size smaller / Size larger** — cat scale 1.0–8.0 (steps of 0.5).
+- **Speed slower / Speed faster** — movement speed 0.5–10.0 (steps of 0.5; default 2.0).
+- **Sound** — toggle sound effects on/off.
+- **Color** — pick a built-in coat.
+- **Custom** — type a 6-digit hex code (e.g. `FF00AA`) and **Apply color** (or
+  Enter). The original white body is recolored at runtime; the coat is cached
+  and appears in the Color list next time.
+- **Autostart** — (Windows) run Neko at login for the current user via the
+  registry `Run` key. Toggle on/off; uses the path of the `.exe` you launched.
+- **Quit** — exit the program.
+
+Escape or right-click again closes the menu. Size, sound, and typing keep the
+menu open.
 
 ### Command-line flags
 
@@ -132,6 +150,7 @@ Flags override the config file (precedence: defaults < config file < flags):
 - `-quiet` Disable sound.
 - `-mousepassthrough` Enable mouse passthrough.
 - `-spritesheet` Path to a custom oneko-layout sprite sheet (PNG).
+- `-color` Built-in coat color as RRGGBB hex (e.g. `BC83DB`). Empty is the original; ignored with `-spritesheet`.
 - `-h` Show help.
 
 ## Sprite sheets and skins
@@ -143,8 +162,17 @@ so sprite sheets from the oneko ecosystem can be loaded as skins.
 Pass your own sheet with `-spritesheet path/to/sheet.png` (or the `SpriteSheet`
 config setting). When no sheet is given, the built-in cat is used.
 
-The built-in sheet (`assets/neko.png`) is generated from the individual sprite
-files in `sprites/`. To regenerate it after editing those sprites:
+### Built-in coat colors
+
+Source frames live in `sprites/` (plain names like `awake.png`). They use a
+**white body + black outline**. At build time they pack into a single sheet
+`assets/neko.png`. Preset and custom coats are produced at runtime by recoloring
+that white body to a hex color (no per-color sprite files).
+
+Presets: Original, Purple (`BC83DB`), Blue (`85B4DD`), Orange (`EDAF71`),
+Pink (`FFAAD4`), Green (`B1EA9D`), Gray (`7F7F7F`).
+
+To regenerate the sheet after editing sprites:
 
 ```bash
 GENSHEET=1 go test -run TestGenerateSpriteSheet
