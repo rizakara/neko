@@ -14,19 +14,25 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
-// Context menu layout (logical pixels). The menu always uses menuUIScale for
-// the window size so changing the cat's Scale never resizes the panel.
+// Context menu layout in logical pixels. Window pixel size is logical * menuScale,
+// where menuScale is fitted to the current monitor (multi-monitor / DPI safe).
 const (
-	menuPad     = 4
-	menuTitleH  = 14
-	menuItemH   = 22
-	menuItemW   = 128
-	menuPreview = 18
-	menuSwatch  = 10
-	menuTextX   = menuPad + menuPreview + 6
+	menuPad       = 5
+	menuTitleH    = 14
+	menuItemH     = 20
+	menuItemW     = 140
+	menuColorRowH = 26
+	menuSwatch    = 16
+	menuSwatchGap = 4
 
-	// Fixed on-screen scale for the menu window (independent of cat Scale).
-	menuUIScale = 1.5
+	// Adaptive window scale bounds (device-independent pixels).
+	// Prefer a readable size; only shrink when the panel would overflow.
+	menuScaleMin    = 1.15
+	menuScaleMax    = 1.5
+	menuMaxMonFracW = 0.36 // max ~36% of monitor width
+	menuMaxMonFracH = 0.55 // max ~55% of monitor height
+	menuMinPixelW   = 180
+	menuMinPixelH   = 220
 
 	// Cat on-screen scale bounds for menu +/- controls.
 	scaleMin  = 1.0
@@ -59,25 +65,28 @@ const (
 	menuKindSpeedDown
 	menuKindSpeedUp
 	menuKindSound
-	menuKindColor
-	menuKindCustomInput // hex text field
-	menuKindCustomApply // apply typed hex
-	menuKindAutostart   // toggle run at Windows login
-	menuKindQuit        // exit the program
+	menuKindColorStrip // one row of color swatches
+	menuKindCustomInput
+	menuKindCustomApply
+	menuKindAutostart
+	menuKindQuit
 )
 
 // menuEntry is one row in the context menu (header or clickable item).
 type menuEntry struct {
 	kind  menuKind
-	color string // only for menuKindColor
 	label string
 }
 
 func (e menuEntry) height() int {
-	if e.kind == menuKindHeader {
+	switch e.kind {
+	case menuKindHeader:
 		return menuTitleH
+	case menuKindColorStrip:
+		return menuColorRowH
+	default:
+		return menuItemH
 	}
-	return menuItemH
 }
 
 func (e menuEntry) clickable() bool {
@@ -88,25 +97,18 @@ func (e menuEntry) clickable() bool {
 func (m *neko) buildMenuEntries() {
 	entries := []menuEntry{
 		{kind: menuKindHeader, label: "Size"},
-		{kind: menuKindSizeDown, label: "Size smaller"},
-		{kind: menuKindSizeUp, label: "Size larger"},
+		{kind: menuKindSizeDown, label: "Smaller"},
+		{kind: menuKindSizeUp, label: "Larger"},
 		{kind: menuKindHeader, label: "Speed"},
-		{kind: menuKindSpeedDown, label: "Speed slower"},
-		{kind: menuKindSpeedUp, label: "Speed faster"},
+		{kind: menuKindSpeedDown, label: "Slower"},
+		{kind: menuKindSpeedUp, label: "Faster"},
 		{kind: menuKindHeader, label: "Sound"},
 		{kind: menuKindSound, label: "Sound"},
 	}
-	// Color presets + custom hex when the original base sheet is available.
 	if _, hasBase := m.colorSheets[""]; hasBase && len(m.colorOrder) > 0 {
-		entries = append(entries, menuEntry{kind: menuKindHeader, label: "Color"})
-		for _, c := range m.colorOrder {
-			entries = append(entries, menuEntry{
-				kind:  menuKindColor,
-				color: c,
-				label: colorLabel(c),
-			})
-		}
 		entries = append(entries,
+			menuEntry{kind: menuKindHeader, label: "Color"},
+			menuEntry{kind: menuKindColorStrip, label: "Colors"},
 			menuEntry{kind: menuKindHeader, label: "Custom"},
 			menuEntry{kind: menuKindCustomInput, label: "Hex"},
 			menuEntry{kind: menuKindCustomApply, label: "Apply"},
@@ -128,14 +130,15 @@ func (m *neko) openColorMenu() {
 	}
 	m.menuOpen = true
 	m.menuHover = -1
+	m.menuHoverColor = -1
 	m.customInputFocus = false
-	// Prefill with current coat when it is a hex color.
 	if m.color != "" {
 		m.customHexInput = m.color
 	}
 	m.lastSprite = ""
+	// Fit scale to the monitor that currently hosts the window.
+	m.menuScale = m.fitMenuScale()
 	m.applyMenuWindowSize()
-	// Keep the panel on-screen (e.g. when the cat sits near the bottom edge).
 	m.pinMenuWindow()
 }
 
@@ -146,10 +149,10 @@ func (m *neko) closeColorMenu() {
 	}
 	m.menuOpen = false
 	m.menuHover = -1
+	m.menuHoverColor = -1
 	m.customInputFocus = false
 	m.lastSprite = ""
 	m.applyCatWindowSize()
-	// Menu may have been shifted to fit the screen; snap back to the cat.
 	ebiten.SetWindowPosition(int(math.Round(m.x)), int(math.Round(m.y)))
 }
 
@@ -160,46 +163,131 @@ func (m *neko) applyCatWindowSize() {
 	)
 }
 
-// applyMenuWindowSize sizes the window for the menu using a fixed UI scale
-// so the panel does not grow/shrink with the cat.
+func (m *neko) activeMenuScale() float64 {
+	if m.menuScale <= 0 {
+		return 1
+	}
+	return m.menuScale
+}
+
+// fitMenuScale picks a window scale so the panel fits this monitor.
+// Uses device-independent sizes from ebiten (works across multi-monitor / DPI).
+func (m *neko) fitMenuScale() float64 {
+	lw, lh := m.menuSize()
+	if lw < 1 {
+		lw = 1
+	}
+	if lh < 1 {
+		lh = 1
+	}
+
+	monW, monH := m.currentMonitorSize()
+	maxW := int(float64(monW) * menuMaxMonFracW)
+	maxH := int(float64(monH) * menuMaxMonFracH)
+	if maxW < menuMinPixelW {
+		maxW = menuMinPixelW
+	}
+	if maxH < menuMinPixelH {
+		maxH = menuMinPixelH
+	}
+	// Never claim more than the monitor itself.
+	if monW > 0 && maxW > monW-8 {
+		maxW = monW - 8
+	}
+	if monH > 0 && maxH > monH-8 {
+		maxH = monH - 8
+	}
+
+	// Prefer the max scale when the monitor has room; only drop when needed.
+	scale := menuScaleMax
+	fit := math.Min(float64(maxW)/float64(lw), float64(maxH)/float64(lh))
+	if fit < scale {
+		scale = fit
+	}
+	if scale < menuScaleMin {
+		// Still too tall/wide even at min: allow slightly smaller to stay on-screen.
+		if fit < menuScaleMin {
+			scale = fit
+		} else {
+			scale = menuScaleMin
+		}
+	}
+	if scale < 1.0 {
+		scale = 1.0 // never unreadable
+	}
+	return scale
+}
+
+func (m *neko) currentMonitorSize() (int, int) {
+	if mon := ebiten.Monitor(); mon != nil {
+		if w, h := mon.Size(); w > 0 && h > 0 {
+			return w, h
+		}
+	}
+	// Fallback: common laptop resolution.
+	return 1280, 720
+}
+
+// applyMenuWindowSize sizes the menu window using the fitted scale.
 func (m *neko) applyMenuWindowSize() {
 	w, h := m.menuSize()
-	ebiten.SetWindowSize(
-		int(float64(w)*menuUIScale),
-		int(float64(h)*menuUIScale),
-	)
+	s := m.activeMenuScale()
+	ebiten.SetWindowSize(int(float64(w)*s), int(float64(h)*s))
 }
 
 // menuWindowPixelSize is the on-screen size of the menu panel.
 func (m *neko) menuWindowPixelSize() (int, int) {
 	w, h := m.menuSize()
-	return int(float64(w) * menuUIScale), int(float64(h) * menuUIScale)
+	s := m.activeMenuScale()
+	return int(float64(w) * s), int(float64(h) * s)
 }
 
-// clampedMenuPosition returns a top-left window position for the menu that
-// stays fully inside the current monitor, preferring the cat's location.
+func (m *neko) menuSize() (int, int) {
+	h := menuPad * 2
+	for _, e := range m.menuEntries {
+		h += e.height()
+	}
+	if h < menuPad*2+menuItemH {
+		h = menuPad*2 + menuItemH
+	}
+	// Width grows slightly if many color swatches need room.
+	w := menuPad*2 + menuItemW
+	if n := len(m.colorOrder); n > 0 {
+		need := menuPad*2 + n*(menuSwatch+menuSwatchGap) + menuSwatchGap
+		if need > w {
+			w = need
+		}
+	}
+	return w, h
+}
+
+// clampedMenuPosition keeps the menu fully inside the current monitor.
 func (m *neko) clampedMenuPosition() (int, int) {
 	pw, ph := m.menuWindowPixelSize()
-	x := int(math.Round(m.x))
-	y := int(math.Round(m.y))
-
-	monW, monH := 0, 0
-	if mon := ebiten.Monitor(); mon != nil {
-		monW, monH = mon.Size()
-	}
-	if monW <= 0 || monH <= 0 {
-		return x, y
+	// Anchor to live window position when available (multi-monitor safe).
+	x, y := ebiten.WindowPosition()
+	// Prefer tracked cat coords if they match the same monitor frame.
+	if mx, my := int(math.Round(m.x)), int(math.Round(m.y)); mx != 0 || my != 0 {
+		x, y = mx, my
 	}
 
-	// Prefer opening upward when the cat is in the lower half of the screen,
-	// so a tall menu does not spill off the bottom.
+	monW, monH := m.currentMonitorSize()
+
+	catW := int(float64(width) * m.cfg.Scale)
+	catH := int(float64(height) * m.cfg.Scale)
+	if catW < 1 {
+		catW = width
+	}
+	if catH < 1 {
+		catH = height
+	}
+
+	// If the panel would hang past the bottom/right, flip to open upward/left
+	// aligned with the cat's far edge.
 	if y+ph > monH {
-		// Align menu bottom with cat bottom (approx: cat size scaled).
-		catH := int(float64(height) * m.cfg.Scale)
 		y = y + catH - ph
 	}
 	if x+pw > monW {
-		catW := int(float64(width) * m.cfg.Scale)
 		x = x + catW - pw
 	}
 
@@ -218,21 +306,9 @@ func (m *neko) clampedMenuPosition() (int, int) {
 	return x, y
 }
 
-// pinMenuWindow places the menu window at a clamped on-screen position.
 func (m *neko) pinMenuWindow() {
 	x, y := m.clampedMenuPosition()
 	ebiten.SetWindowPosition(x, y)
-}
-
-func (m *neko) menuSize() (int, int) {
-	h := menuPad * 2
-	for _, e := range m.menuEntries {
-		h += e.height()
-	}
-	if h < menuPad*2+menuItemH {
-		h = menuPad*2 + menuItemH
-	}
-	return menuPad*2 + menuItemW, h
 }
 
 // menuRowGeometry returns the Y band for entry idx.
@@ -253,7 +329,8 @@ func (m *neko) menuRowGeometry(idx int) (y0, y1 int, ok bool) {
 
 // menuItemAt returns the clickable entry index under (mx, my), or -1.
 func (m *neko) menuItemAt(mx, my int) int {
-	if mx < menuPad || mx >= menuPad+menuItemW {
+	w, _ := m.menuSize()
+	if mx < menuPad || mx >= w-menuPad {
 		return -1
 	}
 	for i, e := range m.menuEntries {
@@ -267,6 +344,28 @@ func (m *neko) menuItemAt(mx, my int) int {
 		if my >= y0 && my < y1 {
 			return i
 		}
+	}
+	return -1
+}
+
+// colorStripIndex returns which coat swatch is under (mx, my) on the strip row.
+func (m *neko) colorStripIndex(mx, my int) int {
+	for i, e := range m.menuEntries {
+		if e.kind != menuKindColorStrip {
+			continue
+		}
+		y0, y1, ok := m.menuRowGeometry(i)
+		if !ok || my < y0 || my >= y1 {
+			return -1
+		}
+		x := menuPad + menuSwatchGap
+		for ci := range m.colorOrder {
+			if mx >= x && mx < x+menuSwatch {
+				return ci
+			}
+			x += menuSwatch + menuSwatchGap
+		}
+		return -1
 	}
 	return -1
 }
@@ -301,7 +400,6 @@ func (m *neko) setSpeed(speed float64) {
 
 // updateCustomHexInput handles keyboard when the hex field is focused.
 func (m *neko) updateCustomHexInput() {
-	// Typed characters (hex only, max 6).
 	chars := ebiten.AppendInputChars(nil)
 	for _, r := range chars {
 		if len(m.customHexInput) >= 6 {
@@ -318,7 +416,6 @@ func (m *neko) updateCustomHexInput() {
 			m.customHexInput = m.customHexInput[:len(m.customHexInput)-1]
 		}
 	}
-	// Ctrl/Cmd+V is not handled; paste support varies by platform.
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyKPEnter) {
 		m.tryApplyCustomHex()
@@ -341,9 +438,10 @@ func (m *neko) tryApplyCustomHex() bool {
 	if !m.applyCustomColor(hex) {
 		return false
 	}
-	// Refresh color list rows so the new coat appears as a preset entry.
 	m.buildMenuEntries()
+	m.menuScale = m.fitMenuScale()
 	m.applyMenuWindowSize()
+	m.pinMenuWindow()
 	m.customInputFocus = false
 	return true
 }
@@ -351,33 +449,43 @@ func (m *neko) tryApplyCustomHex() bool {
 // updateColorMenu handles input while the context menu is open.
 // Returns ebiten.Termination when the user chooses Quit.
 func (m *neko) updateColorMenu() error {
-	// Stay on-screen; do not follow m.x/m.y raw (would clip at edges).
+	// Re-fit if the window moved to another monitor with a different size.
+	if mon := ebiten.Monitor(); mon != nil && mon != m.monitor {
+		m.monitor = mon
+		m.menuScale = m.fitMenuScale()
+		m.applyMenuWindowSize()
+	}
 	m.pinMenuWindow()
 
-	// Hex field keyboard capture takes priority while focused.
+	mx, my := ebiten.CursorPosition()
+	m.menuHover = m.menuItemAt(mx, my)
+	m.menuHoverColor = m.colorStripIndex(mx, my)
+
 	if m.customInputFocus {
-		// Esc unfocuses first; second Esc (next frame) closes menu.
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 			m.customInputFocus = false
 			return nil
 		}
 		m.updateCustomHexInput()
-		// Still allow right-click to close.
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
 			m.closeColorMenu()
 			return nil
 		}
-		// Clicks still work for other rows / apply.
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyEscape) ||
 		inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
 		m.closeColorMenu()
 		return nil
 	}
 
-	mx, my := ebiten.CursorPosition()
-	m.menuHover = m.menuItemAt(mx, my)
-
 	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		return nil
+	}
+
+	// Color swatch click takes priority when over the strip.
+	if ci := m.colorStripIndex(mx, my); ci >= 0 && ci < len(m.colorOrder) {
+		m.customInputFocus = false
+		_ = m.setColor(m.colorOrder[ci])
+		m.closeColorMenu()
 		return nil
 	}
 
@@ -417,25 +525,19 @@ func (m *neko) updateColorMenu() error {
 			_ = m.currentPlayer.Close()
 			m.currentPlayer = nil
 		}
-	case menuKindColor:
-		m.customInputFocus = false
-		_ = m.setColor(entry.color)
-		m.closeColorMenu()
+	case menuKindColorStrip:
+		// handled above via colorStripIndex
 	case menuKindCustomInput:
 		m.customInputFocus = true
 	case menuKindCustomApply:
 		if m.tryApplyCustomHex() {
-			// Keep menu open so the user sees the new color in the list;
-			// close so the cat shows immediately.
 			m.closeColorMenu()
 		}
 	case menuKindAutostart:
 		m.customInputFocus = false
-		if !autostartSupported {
-			break
+		if autostartSupported {
+			_ = setAutostartEnabled(!isAutostartEnabled())
 		}
-		// Toggle current-user login autostart (Windows Run key).
-		_ = setAutostartEnabled(!isAutostartEnabled())
 	case menuKindQuit:
 		return ebiten.Termination
 	}
@@ -457,15 +559,20 @@ func (m *neko) drawColorMenu(screen *ebiten.Image) {
 			label := e.label
 			switch label {
 			case "Size":
-				label = fmt.Sprintf("Size  (x%.1f)", m.cfg.Scale)
+				label = fmt.Sprintf("Size x%.1f", m.cfg.Scale)
 			case "Speed":
-				label = fmt.Sprintf("Speed (%.1f)", m.cfg.Speed)
+				label = fmt.Sprintf("Speed %.1f", m.cfg.Speed)
+			case "Color":
+				if m.menuHoverColor >= 0 && m.menuHoverColor < len(m.colorOrder) {
+					label = "Color · " + colorLabel(m.colorOrder[m.menuHoverColor])
+				} else {
+					label = "Color · " + colorLabel(m.color)
+				}
 			}
 			ebitenutil.DebugPrintAt(screen, label, menuPad, y-1)
 			y += menuTitleH
 
 		default:
-			selected := e.kind == menuKindColor && e.color == m.color
 			hovered := i == m.menuHover
 			disabled := (e.kind == menuKindSizeDown && m.cfg.Scale <= scaleMin) ||
 				(e.kind == menuKindSizeUp && m.cfg.Scale >= scaleMax) ||
@@ -474,18 +581,16 @@ func (m *neko) drawColorMenu(screen *ebiten.Image) {
 				(e.kind == menuKindCustomApply && !hexColorRE.MatchString(normalizeColor(m.customHexInput))) ||
 				(e.kind == menuKindAutostart && !autostartSupported)
 
-			switch {
-			case e.kind == menuKindCustomInput && m.customInputFocus:
-				vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
+			rowH := e.height()
+
+			if e.kind == menuKindCustomInput && m.customInputFocus {
+				vector.FillRect(screen, float32(menuPad), float32(y), float32(w-menuPad*2), float32(rowH),
 					color.RGBA{R: 50, G: 55, B: 70, A: 255}, false)
-			case selected:
-				vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
-					color.RGBA{R: 55, G: 70, B: 95, A: 255}, false)
-			case hovered && !disabled:
-				vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
+			} else if hovered && !disabled && e.kind != menuKindColorStrip {
+				vector.FillRect(screen, float32(menuPad), float32(y), float32(w-menuPad*2), float32(rowH),
 					color.RGBA{R: 45, G: 45, B: 55, A: 255}, false)
-			case disabled:
-				vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
+			} else if disabled {
+				vector.FillRect(screen, float32(menuPad), float32(y), float32(w-menuPad*2), float32(rowH),
 					color.RGBA{R: 32, G: 32, B: 36, A: 255}, false)
 			}
 
@@ -499,7 +604,7 @@ func (m *neko) drawColorMenu(screen *ebiten.Image) {
 				} else {
 					label = "  " + label
 				}
-				ebitenutil.DebugPrintAt(screen, label, menuPad+4, y+(menuItemH-12)/2)
+				ebitenutil.DebugPrintAt(screen, label, menuPad+2, y+(rowH-10)/2)
 
 			case menuKindSound:
 				state := "On"
@@ -511,103 +616,83 @@ func (m *neko) drawColorMenu(screen *ebiten.Image) {
 					label = "> Sound: " + state
 				}
 				if !m.cfg.Quiet {
-					vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
+					vector.FillRect(screen, float32(menuPad), float32(y), float32(w-menuPad*2), float32(rowH),
 						color.RGBA{R: 40, G: 60, B: 50, A: 255}, false)
-					if hovered {
-						vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
-							color.RGBA{R: 50, G: 75, B: 60, A: 255}, false)
+				}
+				ebitenutil.DebugPrintAt(screen, label, menuPad+2, y+(rowH-10)/2)
+
+			case menuKindColorStrip:
+				x := menuPad + menuSwatchGap
+				sy := y + (rowH-menuSwatch)/2
+				for ci, c := range m.colorOrder {
+					sw := colorSwatch(c)
+					vector.FillRect(screen, float32(x), float32(sy), menuSwatch, menuSwatch, sw, false)
+					border := color.RGBA{R: 180, G: 180, B: 190, A: 255}
+					if c == m.color {
+						border = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+						vector.StrokeRect(screen, float32(x)-1, float32(sy)-1, menuSwatch+2, menuSwatch+2, 1, border, false)
+					} else if ci == m.menuHoverColor {
+						border = color.RGBA{R: 220, G: 220, B: 100, A: 255}
 					}
+					vector.StrokeRect(screen, float32(x), float32(sy), menuSwatch, menuSwatch, 1, border, false)
+					x += menuSwatch + menuSwatchGap
 				}
-				ebitenutil.DebugPrintAt(screen, label, menuPad+4, y+(menuItemH-12)/2)
-
-			case menuKindColor:
-				previewY := y + (menuItemH-menuPreview)/2
-				if sheets, ok := m.colorSheets[e.color]; ok {
-					if awake, ok := sheets["awake"]; ok && awake != nil {
-						op := &ebiten.DrawImageOptions{}
-						scale := float64(menuPreview) / float64(width)
-						op.GeoM.Scale(scale, scale)
-						op.GeoM.Translate(float64(menuPad+2), float64(previewY))
-						screen.DrawImage(awake, op)
-					}
-				}
-
-				sw := colorSwatch(e.color)
-				sx := float32(menuTextX)
-				sy := float32(y + (menuItemH-menuSwatch)/2)
-				vector.FillRect(screen, sx, sy, menuSwatch, menuSwatch, sw, false)
-				vector.StrokeRect(screen, sx, sy, menuSwatch, menuSwatch, 1, color.RGBA{R: 200, G: 200, B: 200, A: 255}, false)
-
-				label := e.label
-				if selected {
-					label = "* " + label
-				} else {
-					label = "  " + label
-				}
-				ebitenutil.DebugPrintAt(screen, label, menuTextX+menuSwatch+4, y+(menuItemH-12)/2)
 
 			case menuKindCustomInput:
-				// Live swatch from typed hex (or gray while incomplete).
 				sw := color.RGBA{R: 0x66, G: 0x66, B: 0x66, A: 0xFF}
 				if hexColorRE.MatchString(normalizeColor(m.customHexInput)) {
 					sw = colorSwatch(normalizeColor(m.customHexInput))
 				}
-				sx := float32(menuPad + 4)
-				sy := float32(y + (menuItemH-menuSwatch)/2)
+				sx := float32(menuPad + 2)
+				sy := float32(y + (rowH-menuSwatch)/2)
 				vector.FillRect(screen, sx, sy, menuSwatch, menuSwatch, sw, false)
 				vector.StrokeRect(screen, sx, sy, menuSwatch, menuSwatch, 1, color.RGBA{R: 200, G: 200, B: 200, A: 255}, false)
 
-				// Text field: #RRGGBB with blinking cursor when focused.
 				display := "#" + m.customHexInput
 				if m.customInputFocus && (m.count/16)%2 == 0 {
 					display += "_"
 				} else if !m.customInputFocus && m.customHexInput == "" {
 					display = "#______"
 				}
-				// Pad remaining slots lightly for fixed-width feel.
-				ebitenutil.DebugPrintAt(screen, display, menuPad+4+menuSwatch+6, y+(menuItemH-12)/2)
+				ebitenutil.DebugPrintAt(screen, display, menuPad+2+menuSwatch+4, y+(rowH-10)/2)
 
 			case menuKindCustomApply:
-				label := "  Apply color"
+				label := "  Apply"
 				if disabled {
-					label = "  Apply (need 6 hex)"
+					label = "  Apply (6 hex)"
 				} else if hovered {
-					label = "> Apply color"
+					label = "> Apply"
 				}
-				ebitenutil.DebugPrintAt(screen, label, menuPad+4, y+(menuItemH-12)/2)
+				ebitenutil.DebugPrintAt(screen, label, menuPad+2, y+(rowH-10)/2)
 
 			case menuKindAutostart:
 				state := "Off"
 				if autostartSupported && isAutostartEnabled() {
 					state = "On"
 				}
-				label := "  Autostart: " + state
+				label := "  Auto: " + state
 				if !autostartSupported {
-					label = "  Autostart: n/a"
+					label = "  Auto: n/a"
 				} else if hovered {
-					label = "> Autostart: " + state
+					label = "> Auto: " + state
 				}
 				if autostartSupported && isAutostartEnabled() {
-					vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
+					vector.FillRect(screen, float32(menuPad), float32(y), float32(w-menuPad*2), float32(rowH),
 						color.RGBA{R: 40, G: 60, B: 50, A: 255}, false)
-					if hovered {
-						vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
-							color.RGBA{R: 50, G: 75, B: 60, A: 255}, false)
-					}
 				}
-				ebitenutil.DebugPrintAt(screen, label, menuPad+4, y+(menuItemH-12)/2)
+				ebitenutil.DebugPrintAt(screen, label, menuPad+2, y+(rowH-10)/2)
 
 			case menuKindQuit:
 				label := "  Quit"
 				if hovered {
 					label = "> Quit"
-					vector.FillRect(screen, float32(menuPad), float32(y), float32(menuItemW), float32(menuItemH),
+					vector.FillRect(screen, float32(menuPad), float32(y), float32(w-menuPad*2), float32(rowH),
 						color.RGBA{R: 70, G: 40, B: 40, A: 255}, false)
 				}
-				ebitenutil.DebugPrintAt(screen, label, menuPad+4, y+(menuItemH-12)/2)
+				ebitenutil.DebugPrintAt(screen, label, menuPad+2, y+(rowH-10)/2)
 			}
 
-			y += menuItemH
+			y += rowH
 		}
 	}
 }
@@ -626,7 +711,6 @@ func colorLabel(c string) string {
 // colorSwatch returns a solid fill for the menu chip.
 func colorSwatch(c string) color.RGBA {
 	if c == "" {
-		// Original body is white in the source sprites.
 		return color.RGBA{R: 0xF0, G: 0xF0, B: 0xF0, A: 0xFF}
 	}
 	if len(c) != 6 {

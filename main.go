@@ -56,6 +56,8 @@ type neko struct {
 
 	menuOpen         bool        // context menu is showing
 	menuHover        int         // hovered menu row, or -1
+	menuHoverColor   int         // hovered color swatch index, or -1
+	menuScale        float64     // window scale fitted to current monitor
 	menuEntries      []menuEntry // flat list of rows for the open menu
 	customHexInput   string      // typed RRGGBB buffer for custom color
 	customInputFocus bool        // hex field is capturing keyboard
