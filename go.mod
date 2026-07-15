@@ -1,4 +1,4 @@
-module github.com/crgimenes/neko
+module github.com/rizakara/psinoza
 
 go 1.26
 

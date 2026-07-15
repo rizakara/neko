@@ -47,7 +47,7 @@ func composeSpriteSheet(spritesDir string) (*image.NRGBA, error) {
 }
 
 // TestGenerateSpriteSheet composes the individual sprite PNGs in sprites/ into
-// a single oneko-layout sheet at assets/neko.png. Built-in coat colors are no
+// a single oneko-layout sheet at assets/psinoza.png. Built-in coat colors are no
 // longer packed as separate sheets; they are recolored at runtime from this
 // original white body. Cells not present in spriteSheetLayout are left
 // transparent. It is a generator rather than a check, so it only runs when
@@ -56,7 +56,7 @@ func composeSpriteSheet(spritesDir string) (*image.NRGBA, error) {
 //	GENSHEET=1 go test -run TestGenerateSpriteSheet
 func TestGenerateSpriteSheet(t *testing.T) {
 	if os.Getenv("GENSHEET") == "" {
-		t.Skip("set GENSHEET=1 to regenerate assets/neko.png")
+		t.Skip("set GENSHEET=1 to regenerate assets/psinoza.png")
 	}
 
 	sheet, err := composeSpriteSheet("sprites")
@@ -64,7 +64,7 @@ func TestGenerateSpriteSheet(t *testing.T) {
 		t.Fatalf("compose sheet: %v", err)
 	}
 
-	out := filepath.Join("assets", "neko.png")
+	out := filepath.Join("assets", "psinoza.png")
 	f, err := os.Create(out)
 	if err != nil {
 		t.Fatalf("create %s: %v", out, err)

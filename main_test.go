@@ -105,7 +105,7 @@ func TestSyncMonitor(t *testing.T) {
 
 	first := new(ebiten.MonitorType)
 	second := new(ebiten.MonitorType)
-	n := &neko{x: 100, y: 200}
+	n := &psinoza{x: 100, y: 200}
 
 	windowPositionCalls := 0
 	windowPosition := func() (int, int) {

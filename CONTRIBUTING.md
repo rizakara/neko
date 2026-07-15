@@ -1,6 +1,6 @@
-# Welcome to the Neko contribution guide.
+# Welcome to the Psinoza contribution guide.
 
-Thank you for being so interested in contributing to Neko! We welcome contributions from the community to help make this project better. By contributing, you are helping us improve and grow this software.
+Thank you for being so interested in contributing to Psinoza! We welcome contributions from the community to help make this project better. By contributing, you are helping us improve and grow this software.
 
 Please take a moment to review this document to understand how you can contribute and be a part of our open-source community.
 
@@ -14,11 +14,11 @@ Please take a moment to review this document to understand how you can contribut
 
 ## Getting Started
 
-- Fork the Neko repository on GitHub.
+- Fork the Psinoza repository on GitHub.
 - Clone your fork to your local machine:
 
 ```bash
-git clone https://github.com/yourusername/neko.git
+git clone https://github.com/yourusername/psinoza.git
 ```
 
 - Create a new branch for your contributions:
@@ -40,11 +40,11 @@ git commit -m "Add feature X"
 git push origin my-feature-branch
 ```
 
-Create a pull request from your fork to the main Neko repository on GitHub.
+Create a pull request from your fork to the main Psinoza repository on GitHub.
 
 ## How to Contribute
 
-You can contribute to Neko in various ways:
+You can contribute to Psinoza in various ways:
 
 - Add new features.
 - Fix bugs and issues.

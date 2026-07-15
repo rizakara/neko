@@ -1,5 +1,5 @@
-;;; Neko configuration - Filo format
-;;; Copy this file to ~/.config/neko/init.filo or ./neko_init.filo
+;;; Psinoza configuration - Filo format
+;;; Copy this file to ~/.config/psinoza/init.filo or ./psinoza_init.filo
 
 (do
   (set Speed 2.0)             ;; movement speed of the cat

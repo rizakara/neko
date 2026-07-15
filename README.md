@@ -1,10 +1,10 @@
-# Neko
+# Psinoza
 
-![Neko](https://raw.githubusercontent.com/crgimenes/neko/master/assets/awake.png)
+![Psinoza](https://raw.githubusercontent.com/rizakara/psinoza/master/assets/awake.png)
 
-[Neko](https://en.wikipedia.org/wiki/Neko_(software)) is a cat that chases the mouse cursor across the screen, an app written in the late 1980s and ported for many platforms.
+[Psinoza](https://en.wikipedia.org/wiki/Neko_(software)) is a cat that chases the mouse cursor across the screen, an app written in the late 1980s and ported for many platforms.
 
-![Neco](https://github.com/crgimenes/neko/blob/master/fixtures/neko.gif)
+![Neco](https://github.com/rizakara/psinoza/blob/master/fixtures/psinoza.gif)
 
 This code is a re-implementation using Golang and **has no relationship to the original software**. Furthermore, this version does not use any part of the original source code except sprites and sounds.
 
@@ -14,43 +14,43 @@ In this example, we used the [Ebitengine](https://ebitengine.org), an incredibly
 
 ## Download (no Go required)
 
-If you just want to use Neko, download a prebuilt binary from the
-[latest release](https://github.com/crgimenes/neko/releases/latest). You do
+If you just want to use Psinoza, download a prebuilt binary from the
+[latest release](https://github.com/rizakara/psinoza/releases/latest). You do
 **not** need Go or any developer tools.
 
 Pick the file for your system:
 
 | System | File to download |
 | --- | --- |
-| macOS (Intel or Apple Silicon) | `neko-darwin-universal.zip` |
-| Windows (64-bit, most common) | `neko-windows-amd64.exe` |
-| Windows (older 32-bit) | `neko-windows-386.exe` |
-| Windows (ARM) | `neko-windows-arm64.exe` |
-| Linux (Intel/AMD 64-bit) | `neko-linux-amd64.gz` |
-| Linux (ARM 64-bit) | `neko-linux-arm64.gz` |
+| macOS (Intel or Apple Silicon) | `psinoza-darwin-universal.zip` |
+| Windows (64-bit, most common) | `psinoza-windows-amd64.exe` |
+| Windows (older 32-bit) | `psinoza-windows-386.exe` |
+| Windows (ARM) | `psinoza-windows-arm64.exe` |
+| Linux (Intel/AMD 64-bit) | `psinoza-linux-amd64.gz` |
+| Linux (ARM 64-bit) | `psinoza-linux-arm64.gz` |
 
 ### macOS
 
-1. Download `neko-darwin-universal.zip` and double-click it to unzip. You will get `neko.app`.
-2. Move `neko.app` to your **Applications** folder (recommended).
-3. Double-click `neko.app` to run it.
+1. Download `psinoza-darwin-universal.zip` and double-click it to unzip. You will get `psinoza.app`.
+2. Move `psinoza.app` to your **Applications** folder (recommended).
+3. Double-click `psinoza.app` to run it.
 
 The app is signed and notarized by Apple, so it should open normally. The single
 "universal" build works on both Intel and Apple Silicon Macs, so there is no need
 to choose an architecture.
 
-If macOS shows **"neko.app is damaged and can't be opened"** or warns about an
+If macOS shows **"psinoza.app is damaged and can't be opened"** or warns about an
 unidentified developer:
 
 - Make sure the download finished completely, and unzip the file before opening
   it (do not run the app from inside the `.zip`). Re-download if in doubt.
-- Right-click (or Control-click) `neko.app`, choose **Open**, then confirm with
+- Right-click (or Control-click) `psinoza.app`, choose **Open**, then confirm with
   **Open** in the dialog.
 - If it still will not open, open the **Terminal** app and run (adjust the path
   if you did not move it to Applications):
 
   ```bash
-  xattr -dr com.apple.quarantine /Applications/neko.app
+  xattr -dr com.apple.quarantine /Applications/psinoza.app
   ```
 
 - Check **System Settings → Privacy & Security → Security** and make sure
@@ -68,14 +68,14 @@ warn you because the app is not from the Microsoft Store: click
 Download the matching `.gz`, then decompress and run it:
 
 ```bash
-gunzip neko-linux-amd64.gz
-chmod +x neko-linux-amd64
-./neko-linux-amd64
+gunzip psinoza-linux-amd64.gz
+chmod +x psinoza-linux-amd64
+./psinoza-linux-amd64
 ```
 
 ## Run from source
 
-If you have Go installed and want to run Neko from source:
+If you have Go installed and want to run Psinoza from source:
 
 ```bash
 go run main.go
@@ -84,7 +84,7 @@ go run main.go
 Or build the binary and run it:
 
 ```bash
-go build -o neko main.go
+go build -o psinoza main.go
 ```
 
 On macOS and Windows no extra dependencies are needed. On **Linux**, Ebitengine
@@ -96,14 +96,14 @@ requires Cgo and the system development libraries, so build with
 `libxxf86vm-dev`, and `pkg-config`).
 ## Configuration
 
-Neko is configured with a [Filo](https://github.com/crgimenes/filo) script. On
+Psinoza is configured with a [Filo](https://github.com/crgimenes/filo) script. On
 startup it looks for the config file in this order:
 
-1. `./neko_init.filo` in the current directory.
-2. `$XDG_CONFIG_HOME/neko/init.filo` (defaults to `~/.config/neko/init.filo`).
+1. `./psinoza_init.filo` in the current directory.
+2. `$XDG_CONFIG_HOME/psinoza/init.filo` (defaults to `~/.config/psinoza/init.filo`).
 
 If no file is found, the built-in defaults are used. Any setting omitted from the
-file keeps its default. See [`neko_init-sample.filo`](neko_init-sample.filo) for a
+file keeps its default. See [`psinoza_init-sample.filo`](psinoza_init-sample.filo) for a
 starting point:
 
 ```lisp
@@ -134,7 +134,7 @@ Right-click the cat to open a **context menu** (fixed UI size; only the cat scal
 - **Custom** — type a 6-digit hex code (e.g. `FF00AA`) and **Apply color** (or
   Enter). The original white body is recolored at runtime; the coat is cached
   and appears in the Color list next time.
-- **Autostart** — (Windows) run Neko at login for the current user via the
+- **Autostart** — (Windows) run Psinoza at login for the current user via the
   registry `Run` key. Toggle on/off; uses the path of the `.exe` you launched.
 - **Quit** — exit the program.
 
@@ -155,7 +155,7 @@ Flags override the config file (precedence: defaults < config file < flags):
 
 ## Sprite sheets and skins
 
-Neko draws its frames from a single sprite sheet: an 8x4 grid of 32x32 tiles
+Psinoza draws its frames from a single sprite sheet: an 8x4 grid of 32x32 tiles
 (256x128). The tile layout follows [adryd325/oneko.js](https://github.com/adryd325/oneko.js),
 so sprite sheets from the oneko ecosystem can be loaded as skins.
 
@@ -166,7 +166,7 @@ config setting). When no sheet is given, the built-in cat is used.
 
 Source frames live in `sprites/` (plain names like `awake.png`). They use a
 **white body + black outline**. At build time they pack into a single sheet
-`assets/neko.png`. Preset and custom coats are produced at runtime by recoloring
+`assets/psinoza.png`. Preset and custom coats are produced at runtime by recoloring
 that white body to a hex color (no per-color sprite files).
 
 Presets: Original, Purple (`BC83DB`), Blue (`85B4DD`), Orange (`EDAF71`),
@@ -180,17 +180,17 @@ GENSHEET=1 go test -run TestGenerateSpriteSheet
 
 ## How to install
 
-Before installing Neko, make sure you have Go installed on your system, as we will be using `go install`.
+Before installing Psinoza, make sure you have Go installed on your system, as we will be using `go install`.
 
 Install dependencies, build, and install the project into your Go bin directory:
 
 ```bash
-cd neko
+cd psinoza
 go mod tidy
 go install
 ```
 
-To use Neko globally across your system, check if your Go bin directory is in your `$PATH` by running:
+To use Psinoza globally across your system, check if your Go bin directory is in your `$PATH` by running:
 
 ```bash
 echo $PATH
@@ -201,7 +201,7 @@ If you don't see a Go bin directory, you'll need to add the following line to yo
 export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
-After that, you can simply run `neko` in your terminal. If you want it to start with your system, you can add it to your `.xinitrc` or a similar startup script.
+After that, you can simply run `psinoza` in your terminal. If you want it to start with your system, you can add it to your `.xinitrc` or a similar startup script.
 
 ## How to Contribute
 

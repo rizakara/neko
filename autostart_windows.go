@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-const autostartRegValue = "Neko"
+const autostartRegValue = "Psinoza"
 
 // autostartSupported is true on platforms that can register a login run entry.
 const autostartSupported = true
@@ -33,7 +33,7 @@ func quotedAutostartCommand(exe string) string {
 	return exe
 }
 
-// isAutostartEnabled reports whether Neko is registered for the current user.
+// isAutostartEnabled reports whether Psinoza is registered for the current user.
 func isAutostartEnabled() bool {
 	exe, err := autostartExePath()
 	if err != nil {

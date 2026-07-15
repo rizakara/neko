@@ -94,7 +94,7 @@ func (e menuEntry) clickable() bool {
 }
 
 // buildMenuEntries rebuilds the flat list of rows.
-func (m *neko) buildMenuEntries() {
+func (m *psinoza) buildMenuEntries() {
 	entries := []menuEntry{
 		{kind: menuKindHeader, label: "Size"},
 		{kind: menuKindSizeDown, label: "Smaller"},
@@ -123,7 +123,7 @@ func (m *neko) buildMenuEntries() {
 }
 
 // openColorMenu expands the window into the context menu.
-func (m *neko) openColorMenu() {
+func (m *psinoza) openColorMenu() {
 	m.buildMenuEntries()
 	if len(m.menuEntries) == 0 {
 		return
@@ -143,7 +143,7 @@ func (m *neko) openColorMenu() {
 }
 
 // closeColorMenu restores the cat-sized window at the cat's true position.
-func (m *neko) closeColorMenu() {
+func (m *psinoza) closeColorMenu() {
 	if !m.menuOpen {
 		return
 	}
@@ -156,14 +156,14 @@ func (m *neko) closeColorMenu() {
 	ebiten.SetWindowPosition(int(math.Round(m.x)), int(math.Round(m.y)))
 }
 
-func (m *neko) applyCatWindowSize() {
+func (m *psinoza) applyCatWindowSize() {
 	ebiten.SetWindowSize(
 		int(float64(width)*m.cfg.Scale),
 		int(float64(height)*m.cfg.Scale),
 	)
 }
 
-func (m *neko) activeMenuScale() float64 {
+func (m *psinoza) activeMenuScale() float64 {
 	if m.menuScale <= 0 {
 		return 1
 	}
@@ -172,7 +172,7 @@ func (m *neko) activeMenuScale() float64 {
 
 // fitMenuScale picks a window scale so the panel fits this monitor.
 // Uses device-independent sizes from ebiten (works across multi-monitor / DPI).
-func (m *neko) fitMenuScale() float64 {
+func (m *psinoza) fitMenuScale() float64 {
 	lw, lh := m.menuSize()
 	if lw < 1 {
 		lw = 1
@@ -218,7 +218,7 @@ func (m *neko) fitMenuScale() float64 {
 	return scale
 }
 
-func (m *neko) currentMonitorSize() (int, int) {
+func (m *psinoza) currentMonitorSize() (int, int) {
 	if mon := ebiten.Monitor(); mon != nil {
 		if w, h := mon.Size(); w > 0 && h > 0 {
 			return w, h
@@ -229,20 +229,20 @@ func (m *neko) currentMonitorSize() (int, int) {
 }
 
 // applyMenuWindowSize sizes the menu window using the fitted scale.
-func (m *neko) applyMenuWindowSize() {
+func (m *psinoza) applyMenuWindowSize() {
 	w, h := m.menuSize()
 	s := m.activeMenuScale()
 	ebiten.SetWindowSize(int(float64(w)*s), int(float64(h)*s))
 }
 
 // menuWindowPixelSize is the on-screen size of the menu panel.
-func (m *neko) menuWindowPixelSize() (int, int) {
+func (m *psinoza) menuWindowPixelSize() (int, int) {
 	w, h := m.menuSize()
 	s := m.activeMenuScale()
 	return int(float64(w) * s), int(float64(h) * s)
 }
 
-func (m *neko) menuSize() (int, int) {
+func (m *psinoza) menuSize() (int, int) {
 	h := menuPad * 2
 	for _, e := range m.menuEntries {
 		h += e.height()
@@ -262,7 +262,7 @@ func (m *neko) menuSize() (int, int) {
 }
 
 // clampedMenuPosition keeps the menu fully inside the current monitor.
-func (m *neko) clampedMenuPosition() (int, int) {
+func (m *psinoza) clampedMenuPosition() (int, int) {
 	pw, ph := m.menuWindowPixelSize()
 	// Anchor to live window position when available (multi-monitor safe).
 	x, y := ebiten.WindowPosition()
@@ -306,13 +306,13 @@ func (m *neko) clampedMenuPosition() (int, int) {
 	return x, y
 }
 
-func (m *neko) pinMenuWindow() {
+func (m *psinoza) pinMenuWindow() {
 	x, y := m.clampedMenuPosition()
 	ebiten.SetWindowPosition(x, y)
 }
 
 // menuRowGeometry returns the Y band for entry idx.
-func (m *neko) menuRowGeometry(idx int) (y0, y1 int, ok bool) {
+func (m *psinoza) menuRowGeometry(idx int) (y0, y1 int, ok bool) {
 	if idx < 0 || idx >= len(m.menuEntries) {
 		return 0, 0, false
 	}
@@ -328,7 +328,7 @@ func (m *neko) menuRowGeometry(idx int) (y0, y1 int, ok bool) {
 }
 
 // menuItemAt returns the clickable entry index under (mx, my), or -1.
-func (m *neko) menuItemAt(mx, my int) int {
+func (m *psinoza) menuItemAt(mx, my int) int {
 	w, _ := m.menuSize()
 	if mx < menuPad || mx >= w-menuPad {
 		return -1
@@ -349,7 +349,7 @@ func (m *neko) menuItemAt(mx, my int) int {
 }
 
 // colorStripIndex returns which coat swatch is under (mx, my) on the strip row.
-func (m *neko) colorStripIndex(mx, my int) int {
+func (m *psinoza) colorStripIndex(mx, my int) int {
 	for i, e := range m.menuEntries {
 		if e.kind != menuKindColorStrip {
 			continue
@@ -371,7 +371,7 @@ func (m *neko) colorStripIndex(mx, my int) int {
 }
 
 // setScale clamps and applies a new cat scale. The open menu stays the same size.
-func (m *neko) setScale(scale float64) {
+func (m *psinoza) setScale(scale float64) {
 	scale = math.Round(scale/scaleStep) * scaleStep
 	if scale < scaleMin {
 		scale = scaleMin
@@ -387,7 +387,7 @@ func (m *neko) setScale(scale float64) {
 }
 
 // setSpeed clamps and applies movement speed.
-func (m *neko) setSpeed(speed float64) {
+func (m *psinoza) setSpeed(speed float64) {
 	speed = math.Round(speed/speedStep) * speedStep
 	if speed < speedMin {
 		speed = speedMin
@@ -399,7 +399,7 @@ func (m *neko) setSpeed(speed float64) {
 }
 
 // updateCustomHexInput handles keyboard when the hex field is focused.
-func (m *neko) updateCustomHexInput() {
+func (m *psinoza) updateCustomHexInput() {
 	chars := ebiten.AppendInputChars(nil)
 	for _, r := range chars {
 		if len(m.customHexInput) >= 6 {
@@ -430,7 +430,7 @@ func isHexRune(r rune) bool {
 }
 
 // tryApplyCustomHex validates the buffer and applies the coat.
-func (m *neko) tryApplyCustomHex() bool {
+func (m *psinoza) tryApplyCustomHex() bool {
 	hex := normalizeColor(m.customHexInput)
 	if !hexColorRE.MatchString(hex) {
 		return false
@@ -448,7 +448,7 @@ func (m *neko) tryApplyCustomHex() bool {
 
 // updateColorMenu handles input while the context menu is open.
 // Returns ebiten.Termination when the user chooses Quit.
-func (m *neko) updateColorMenu() error {
+func (m *psinoza) updateColorMenu() error {
 	// Re-fit if the window moved to another monitor with a different size.
 	if mon := ebiten.Monitor(); mon != nil && mon != m.monitor {
 		m.monitor = mon
@@ -545,7 +545,7 @@ func (m *neko) updateColorMenu() error {
 }
 
 // drawColorMenu paints the context menu panel.
-func (m *neko) drawColorMenu(screen *ebiten.Image) {
+func (m *psinoza) drawColorMenu(screen *ebiten.Image) {
 	w, h := m.menuSize()
 	screen.Clear()
 
